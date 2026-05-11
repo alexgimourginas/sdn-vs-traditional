@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python topologies/gen_topologies.py)",
+      "Bash(pip install *)",
+      "Bash(gh repo *)"
+    ]
+  }
+}

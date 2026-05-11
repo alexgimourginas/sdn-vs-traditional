@@ -1,0 +1,53 @@
+{
+  "nodes": [
+    "R0",
+    "R1",
+    "R2",
+    "R3",
+    "R4"
+  ],
+  "edges": [
+    {
+      "a": "R0",
+      "b": "R1",
+      "bandwidth_mbps": 100,
+      "delay_ms": 1,
+      "loss_rate": 0.0
+    },
+    {
+      "a": "R1",
+      "b": "R2",
+      "bandwidth_mbps": 100,
+      "delay_ms": 8,
+      "loss_rate": 0.0
+    },
+    {
+      "a": "R2",
+      "b": "R3",
+      "bandwidth_mbps": 100,
+      "delay_ms": 18,
+      "loss_rate": 0.0
+    },
+    {
+      "a": "R3",
+      "b": "R4",
+      "bandwidth_mbps": 1000,
+      "delay_ms": 2,
+      "loss_rate": 0.0
+    },
+    {
+      "a": "R4",
+      "b": "R0",
+      "bandwidth_mbps": 100,
+      "delay_ms": 7,
+      "loss_rate": 0.0
+    },
+    {
+      "a": "R0",
+      "b": "R4",
+      "bandwidth_mbps": 100,
+      "delay_ms": 18,
+      "loss_rate": 0.001
+    }
+  ]
+}
