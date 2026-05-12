@@ -30,6 +30,7 @@ def topo_path(n):
     return os.path.join(TOPO_DIR, f"topo_{n}.json")
 
 
+# find a link that's actually on the shortest path so we cut the right link in the failover test
 def _find_path_link(topo_file, src_id, dst_id):
     """Return (a, b) of a middle link on the shortest path src->dst."""
     with open(topo_file) as f:
@@ -49,6 +50,7 @@ def _find_path_link(topo_file, src_id, dst_id):
     return None
 
 
+# run throughput + failover tests on the traditional network at a given node count
 def measure_traditional(n: int) -> dict:
     topo = topo_path(n)
     trad = TraditionalNetwork(topo, update_interval=2.0)
@@ -98,6 +100,7 @@ def measure_traditional(n: int) -> dict:
     }
 
 
+# same tests on the SDN network -- also records controller recompute time after failure
 def measure_sdn(n: int) -> dict:
     topo = topo_path(n)
 

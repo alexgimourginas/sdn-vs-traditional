@@ -27,6 +27,7 @@ COMMANDS_PER_DEVICE = 8
 SECONDS_PER_COMMAND = 0.05                          
 
 
+# simulates typing CLI commands on each device sequentially
 def run_traditional_config(n_devices: int) -> dict:
     m = compute_config_time_traditional(
         n_devices,
@@ -36,6 +37,7 @@ def run_traditional_config(n_devices: int) -> dict:
     return m
 
 
+# simulates a single push to the SDN controller regardless of how many devices there are
 def run_sdn_config(n_devices: int) -> dict:
     return compute_config_time_sdn(n_devices)
 

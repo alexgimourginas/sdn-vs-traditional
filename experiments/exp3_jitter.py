@@ -20,6 +20,7 @@ RATE_PPS = 50
 DURATION = 10.0
 
 
+# send a steady CBR stream and measure how consistent the inter-arrival times are
 def run_experiment(label: str, network, get_node_fn, node_ids: list) -> dict:
     src_id, dst_id = node_ids[0], node_ids[-1]
     src = get_node_fn(src_id)
@@ -31,6 +32,7 @@ def run_experiment(label: str, network, get_node_fn, node_ids: list) -> dict:
         flow_id="exp3_voip", size=200)
     elapsed = time.time() - t0
 
+    # jitter_ms is the standard deviation of inter-arrival times -- lower means smoother
     m = compute_metrics(packets, elapsed)
     print(f"  [{label}] jitter={m['jitter_ms']:.3f}ms  "
           f"avg_latency={m['latency_avg_ms']:.2f}ms  "

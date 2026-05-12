@@ -30,6 +30,7 @@ DST_ID = "R9"
 FAIL_LINK = ("A", "R9")
 
 
+# send traffic, cut the primary link mid-flow, and measure how long until packets get through again
 def run_experiment(label: str, network, get_node_fn) -> dict:
     src = get_node_fn(SRC_ID)
     all_sent = []

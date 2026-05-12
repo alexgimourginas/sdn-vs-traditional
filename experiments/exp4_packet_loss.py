@@ -25,11 +25,13 @@ ATTACK_RATE = 1000
 BOTTLENECK_QUEUE = 3
 
 
+# set a small queue on every link to simulate a congested bottleneck
 def _apply_queue_limits(network):
     for link in network.links:
         link.max_queue = BOTTLENECK_QUEUE
 
 
+# flood attack traffic while sending legitimate priority=1 traffic and measure how much survives
 def run_experiment(label: str, network, get_node_fn, node_ids: list) -> dict:
     _apply_queue_limits(network)
 

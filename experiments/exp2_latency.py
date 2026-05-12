@@ -22,6 +22,7 @@ BG_RATE_PPS = 300
 DURATION = N_PACKETS / RATE_PPS
 
 
+# run the main flow and background congestion simultaneously, then compute latency stats
 def run_experiment(label: str, network, get_node_fn, node_ids: list) -> dict:
     src_id, dst_id = node_ids[0], node_ids[-1]
     mid_id = node_ids[len(node_ids) // 2]
@@ -31,7 +32,7 @@ def run_experiment(label: str, network, get_node_fn, node_ids: list) -> dict:
     packets = []
     get_node_fn(dst_id).on_packet_received = lambda p: packets.append(p)
 
-                                   
+    # background traffic congests the network while we measure the main flow
     bg_thread = run_in_thread(cbr, bg_src, dst_id,
                               BG_RATE_PPS, DURATION,
                               "bg_congestion", 1500)

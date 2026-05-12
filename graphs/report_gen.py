@@ -233,15 +233,21 @@ def plot_exp6():
 
     if cfg:
         fig, ax = plt.subplots(figsize=(5, 4))
+        labels = []
         for row in cfg:
-            color = TRAD_COLOR if row["approach"] == "traditional" else SDN_COLOR
+            approach = row["approach"]
+            color = TRAD_COLOR if approach == "traditional" else SDN_COLOR
             t = _flt(row, "config_time_s")
-            bar = ax.bar(row["approach"].capitalize(), t, color=color, width=0.45)
-            ax.text(bar[0].get_x() + bar[0].get_width()/2,
-                    bar[0].get_height() + 0.5,
-                    f"{t:.1f}s", ha="center", va="bottom", fontsize=9)
+            label = "Traditional" if approach == "traditional" else "SDN"
+            labels.append(label)
+            bar = ax.bar(label, t, color=color, width=0.45)
+            display = f"{t:.1f}s" if t >= 0.1 else f"{t*1000:.0f}ms"
+            ax.text(bar[0].get_x() + bar[0].get_width() / 2,
+                    bar[0].get_height() * 0.5,
+                    display, ha="center", va="center", fontsize=10, color="white", fontweight="bold")
         ax.set_ylabel("Total Configuration Time (seconds)")
         ax.set_title("Experiment 6: Network Configuration Time")
+        ax.set_ylim(0, max(_flt(r, "config_time_s") for r in cfg) * 1.15)
         _save(fig, "exp6_config_time.png")
 
     if pol:
@@ -256,7 +262,8 @@ def plot_exp6():
         ax.bar([i + width/2 for i in x], sdn_t,  width, label="SDN", color=SDN_COLOR)
         ax.set_xticks(list(x))
         ax.set_xticklabels(names, rotation=30, ha="right", fontsize=8)
-        ax.set_ylabel("Policy Deployment Time (seconds)")
+        ax.set_yscale("log")
+        ax.set_ylabel("Policy Deployment Time (seconds, log scale)")
         ax.set_title("Experiment 6: Policy Deployment Time per Policy Type")
         ax.legend()
         _save(fig, "exp6_policies.png")

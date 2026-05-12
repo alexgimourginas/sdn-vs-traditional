@@ -22,10 +22,12 @@ DURATION = 3.0
 RATES_PPS = [10, 50, 100, 200, 400, 700, 1000, 2000, 4000]                
 
 
+# convert packets/sec + packet size to Mbps
 def mbps_offered(rate_pps: int) -> float:
     return (rate_pps * PACKET_SIZE * 8) / 1_000_000
 
 
+# send one CBR burst at a fixed rate and return the metrics for that rate step
 def run_one(network, node_ids: list, get_node_fn, rate_pps: int) -> dict:
     src_id, dst_id = node_ids[0], node_ids[-1]
     src = get_node_fn(src_id)
@@ -46,6 +48,7 @@ def run_one(network, node_ids: list, get_node_fn, rate_pps: int) -> dict:
     return m
 
 
+# step through each rate in RATES_PPS and collect a result row for each
 def run_experiment(label: str, network, get_node_fn, node_ids: list) -> list:
     results = []
     for rate in RATES_PPS:
