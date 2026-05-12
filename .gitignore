@@ -2,5 +2,4 @@ __pycache__/
 *.pyc
 *.pyo
 results/
-graphs/*.png
 .env
