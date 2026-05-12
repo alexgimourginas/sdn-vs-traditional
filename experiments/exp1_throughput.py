@@ -50,7 +50,7 @@ def run_experiment(label: str, network, get_node_fn, node_ids: list) -> list:
     results = []
     for rate in RATES_PPS:
         m = run_one(network, node_ids, get_node_fn, rate)
-        print(f"  [{label}] {m['offered_mbps']:.1f} Mbps offered → "
+        print(f"  [{label}] {m['offered_mbps']:.1f} Mbps offered -> "
               f"{m['throughput_mbps']:.3f} Mbps delivered  "
               f"(loss {m['packet_loss_pct']:.1f}%)")
         results.append(m)

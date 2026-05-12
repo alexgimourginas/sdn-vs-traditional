@@ -92,7 +92,7 @@ class SDNSwitch(Node):
                 packet.dropped = True
                 return
 
-        self._send_on_link(packet, next_hop)
+        self._send_on_link(packet, next_hop, priority_bypass=(packet.priority > 0))
 
     def send(self, packet: Packet):
         """Inject a packet into the network from this switch."""

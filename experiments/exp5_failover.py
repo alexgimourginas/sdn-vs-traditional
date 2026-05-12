@@ -1,10 +1,13 @@
-"""Experiment 5: Failover time — the big one.
+"""Experiment 5: Failover time.
 
-Establishes a stable flow, kills the primary link at t=FAILURE_AT, and
-measures how long until the first packet arrives via the alternate path.
+Uses a dedicated topology (topo_failover.json):
+  Primary path:  R0 -> A -> R9  (2 hops, 5ms each) -- traditional prefers this
+  Backup path:   R0 -> C -> D -> R9  (3 hops, 10ms each)
 
-Traditional (distance-vector): typically 15–30 seconds.
-SDN: typically <1 second (controller recomputes and pushes rules instantly).
+At t=FAILURE_AT, the A-R9 link is cut.
+- SDN: controller removes the edge, recomputes via C-D, pushes rules -> recovery in ms
+- Traditional: A waits DEAD_INTERVAL (30s) to declare R9 dead, then
+  re-propagates via backup -> recovery in 30+ seconds
 """
 
 import sys, os, time, csv, threading
@@ -15,96 +18,54 @@ from sdn.network import SDNNetwork
 from experiments.traffic_gen import cbr
 from experiments.metrics import compute_recovery_time
 
-TOPO = os.path.join(os.path.dirname(__file__), "..", "topologies", "topo_10.json")
+TOPO = os.path.join(os.path.dirname(__file__), "..", "topologies", "topo_failover.json")
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-DURATION = 20.0                                          
-FAILURE_AT = 5.0                                                     
+DURATION = 55.0
+FAILURE_AT = 5.0
 RATE_PPS = 30
+SRC_ID = "R0"
+DST_ID = "R9"
+FAIL_LINK = ("A", "R9")
 
 
-def _find_primary_link(network, src_id: str, dst_id: str):
-    """Return (a, b) of the first link on the shortest path src->dst."""
-    import json
-                                                                   
-    routers = getattr(network, "routers", None)
-    if routers:
-        current = src_id
-        visited = {current}
-        for _ in range(20):
-            r = routers[current]
-            entry = r.get_routing_table().get(dst_id)
-            if entry is None:
-                break
-            next_hop = entry[0]
-            if next_hop == dst_id or next_hop == current:
-                return (current, next_hop)
-            if next_hop in visited:
-                break
-            a, b = min(current, next_hop), max(current, next_hop)
-            visited.add(next_hop)
-            current = next_hop
-        return (src_id, list(routers[src_id].neighbors.keys())[0])
+def run_experiment(label: str, network, get_node_fn) -> dict:
+    src = get_node_fn(SRC_ID)
+    all_sent = []
 
-                                              
-    switches = getattr(network, "switches", None)
-    if switches:
-        path = network.controller.compute_path(src_id, dst_id)
-        if path and len(path) >= 2:
-            return (path[0], path[1])
-    return None
-
-
-def run_experiment(label: str, network, get_node_fn, node_ids: list) -> dict:
-    src_id, dst_id = node_ids[0], node_ids[-1]
-    src = get_node_fn(src_id)
-
-    all_received = []
-    lock = threading.Lock()
-    get_node_fn(dst_id).on_packet_received = lambda p: (
-        lock.acquire() or all_received.append(p) or lock.release()
-    )
-
-                                    
-    start_wall = time.time()
-
-                                   
     traffic_thread = threading.Thread(
-        target=cbr,
-        args=(src, dst_id, RATE_PPS, DURATION),
-        kwargs={"flow_id": "exp5_main", "size": 512},
+        target=lambda: all_sent.extend(
+            cbr(src, DST_ID, RATE_PPS, DURATION, flow_id="exp5_main", size=512)
+        ),
         daemon=True,
     )
     traffic_thread.start()
 
-                                     
     time.sleep(FAILURE_AT)
     failure_wall = time.time()
-    link_pair = _find_primary_link(network, src_id, dst_id)
-    if link_pair:
-        a, b = link_pair
-        print(f"  [{label}] Killing link {a}<->{b} at t={FAILURE_AT}s")
-        network.fail_link(a, b)
-    else:
-        print(f"  [{label}] Warning: could not identify primary link")
+    print(f"  [{label}] Killing link {FAIL_LINK[0]}<->{FAIL_LINK[1]} at t={FAILURE_AT}s")
+    network.fail_link(FAIL_LINK[0], FAIL_LINK[1])
 
     traffic_thread.join()
+    time.sleep(0.1)  # let in-transit packets finish delivering
 
-    recovery = compute_recovery_time(all_received, failure_wall)
-    total_received = len(all_received)
-    total_sent_approx = int(RATE_PPS * DURATION)
+    recovery = compute_recovery_time(all_sent, failure_wall)
+    total_sent_approx = len(all_sent)
+    total_received = len([p for p in all_sent if p.received_time is not None])
 
     result = {
         "label": label,
         "failure_at_s": FAILURE_AT,
-        "recovery_time_s": recovery if recovery != float("inf") else -1,
+        "recovery_time_s": round(recovery, 4) if recovery != float("inf") else -1,
         "total_sent_approx": total_sent_approx,
         "total_received": total_received,
-        "packet_loss_pct": 100.0 * (total_sent_approx - total_received) / max(1, total_sent_approx),
+        "packet_loss_pct": round(
+            100.0 * (total_sent_approx - total_received) / max(1, total_sent_approx), 2
+        ),
     }
-    print(f"  [{label}] Recovery time: "
-          f"{'NEVER' if recovery == float('inf') else f'{recovery:.3f}s'}")
+    rt = result["recovery_time_s"]
+    print(f"  [{label}] Recovery time: {'NEVER' if rt == -1 else f'{rt:.4f}s'}")
     return result
 
 
@@ -121,19 +82,17 @@ def main():
     print("\n=== Experiment 5: Failover time ===")
     results = []
 
-    print("\n[Traditional] Starting...")
+    print("\n[Traditional] Starting (this takes ~40s for convergence + recovery)...")
     trad = TraditionalNetwork(TOPO, update_interval=2.0)
     trad.start()
     trad.wait_for_convergence(timeout=30)
-    r_trad = run_experiment("traditional", trad,
-                            lambda nid: trad.routers[nid], trad.node_ids())
+    r_trad = run_experiment("traditional", trad, lambda nid: trad.routers[nid])
     trad.stop()
     results.append(r_trad)
 
     print("\n[SDN] Starting...")
     sdn = SDNNetwork(TOPO)
-    r_sdn = run_experiment("sdn", sdn,
-                           lambda nid: sdn.switches[nid], sdn.node_ids())
+    r_sdn = run_experiment("sdn", sdn, lambda nid: sdn.switches[nid])
     results.append(r_sdn)
 
     save_csv(results)

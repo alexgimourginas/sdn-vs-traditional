@@ -37,13 +37,16 @@ def compute_metrics(packets: list, elapsed_s: float) -> dict:
 
 
 def compute_recovery_time(packets: list, failure_time: float) -> float:
-    """Return seconds from failure_time until the first packet arrived after it.
+    """Return seconds from failure_time until the first packet that was both
+    SENT and RECEIVED after the failure.
 
-    Returns float('inf') if no packet ever arrived after the failure.
+    Ignores packets that were already in-transit when the failure occurred
+    (sent_time <= failure_time) since those complete regardless of routing.
+    Returns float('inf') if no such packet ever arrived.
     """
     post_failure = [
         p for p in packets
-        if p.received_time is not None and p.received_time > failure_time
+        if p.sent_time > failure_time and p.received_time is not None
     ]
     if not post_failure:
         return float("inf")

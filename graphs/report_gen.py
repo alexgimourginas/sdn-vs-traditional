@@ -203,18 +203,23 @@ def plot_exp5():
     if not rows:
         return
 
+    NO_RECOVERY_CAP = 55.0
     fig, ax = plt.subplots(figsize=(5, 4))
     for row in rows:
         label = row.get("label", "?")
-        rt = _flt(row, "recovery_time_s")
+        rt_raw = _flt(row, "recovery_time_s")
+        no_recovery = rt_raw < 0
+        rt = NO_RECOVERY_CAP if no_recovery else rt_raw
         color = TRAD_COLOR if "trad" in label else SDN_COLOR
         bar = ax.bar(label.capitalize(), rt, color=color, width=0.45)
-        ax.text(bar[0].get_x() + bar[0].get_width()/2,
-                bar[0].get_height() + 0.05,
-                f"{rt:.3f}s", ha="center", va="bottom", fontsize=9)
+        display = "No recovery" if no_recovery else f"{rt_raw:.3f}s"
+        ax.text(bar[0].get_x() + bar[0].get_width() / 2,
+                bar[0].get_height() + 0.5,
+                display, ha="center", va="bottom", fontsize=9)
 
     ax.set_ylabel("Recovery Time (seconds)")
     ax.set_title("Experiment 5: Failover Recovery Time\n(lower is better)")
+    ax.set_ylim(0, NO_RECOVERY_CAP * 1.15)
     _save(fig, "exp5_failover.png")
 
 
@@ -268,9 +273,8 @@ def plot_exp7():
         return
 
     metrics = [
-        ("convergence_s",    "Convergence / Setup Time (s)", "Exp 7a: Convergence vs Network Size"),
-        ("throughput_mbps",  "Throughput (Mbps)",            "Exp 7b: Throughput vs Network Size"),
-        ("recovery_time_s",  "Failover Recovery Time (s)",   "Exp 7c: Recovery Time vs Network Size"),
+        ("convergence_s",   "Convergence / Setup Time (s)", "Exp 7a: Convergence vs Network Size"),
+        ("throughput_mbps", "Throughput (Mbps)",            "Exp 7b: Throughput vs Network Size"),
     ]
 
     for key, ylabel, title in metrics:

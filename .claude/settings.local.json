@@ -3,7 +3,10 @@
     "allow": [
       "Bash(python topologies/gen_topologies.py)",
       "Bash(pip install *)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(python experiments/exp1_throughput.py)",
+      "Bash(python experiments/exp2_latency.py)",
+      "Bash(python experiments/exp3_jitter.py)"
     ]
   }
 }

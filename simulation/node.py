@@ -25,13 +25,13 @@ class Node:
         """Called by a Link when a packet arrives. Override in subclasses."""
         raise NotImplementedError
 
-    def _send_on_link(self, packet: Packet, next_hop_id: str):
+    def _send_on_link(self, packet: Packet, next_hop_id: str, priority_bypass: bool = False):
         link = self.neighbors.get(next_hop_id)
         if link is None:
             packet.dropped = True
             return
         packet.path.append(self.node_id)
-        link.transmit(packet, self)
+        link.transmit(packet, self, priority_bypass=priority_bypass)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.node_id})"

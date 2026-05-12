@@ -1,0 +1,10 @@
+{
+  "nodes": ["R0", "A", "C", "D", "R9"],
+  "edges": [
+    {"a": "R0", "b": "A",  "bandwidth_mbps": 100, "delay_ms": 5,  "loss_rate": 0.0},
+    {"a": "A",  "b": "R9", "bandwidth_mbps": 100, "delay_ms": 5,  "loss_rate": 0.0},
+    {"a": "R0", "b": "C",  "bandwidth_mbps": 100, "delay_ms": 10, "loss_rate": 0.0},
+    {"a": "C",  "b": "D",  "bandwidth_mbps": 100, "delay_ms": 10, "loss_rate": 0.0},
+    {"a": "D",  "b": "R9", "bandwidth_mbps": 100, "delay_ms": 10, "loss_rate": 0.0}
+  ]
+}

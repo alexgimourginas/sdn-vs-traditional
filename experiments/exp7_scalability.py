@@ -1,12 +1,13 @@
-"""Experiment 7: Scalability — does it still work with 100 nodes?
+"""Experiment 7: Scalability -- does it still work with 100 nodes?
 
 Repeats Experiments 1 (throughput), 5 (failover), and convergence time
 on topologies of 5, 10, 20, 50, 100 nodes.
 """
 
-import sys, os, time, csv, threading
+import sys, os, time, csv, threading, json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import networkx as nx
 from traditional.network import TraditionalNetwork
 from sdn.network import SDNNetwork
 from experiments.traffic_gen import cbr
@@ -22,10 +23,30 @@ SIZES = [5, 10, 20, 50, 100]
 DURATION = 3.0
 RATE_PPS = 50
 FAILURE_AT = 1.5
+RECOVERY_WINDOW = 45.0
 
 
 def topo_path(n):
     return os.path.join(TOPO_DIR, f"topo_{n}.json")
+
+
+def _find_path_link(topo_file, src_id, dst_id):
+    """Return (a, b) of a middle link on the shortest path src->dst."""
+    with open(topo_file) as f:
+        topo = json.load(f)
+    g = nx.Graph()
+    for e in topo["edges"]:
+        g.add_edge(e["a"], e["b"], weight=e.get("delay_ms", 5))
+    try:
+        path = nx.shortest_path(g, src_id, dst_id, weight="weight")
+        if len(path) >= 3:
+            mid = len(path) // 2
+            return (path[mid - 1], path[mid])
+        elif len(path) == 2:
+            return (path[0], path[1])
+    except nx.NetworkXNoPath:
+        pass
+    return None
 
 
 def measure_traditional(n: int) -> dict:
@@ -39,7 +60,6 @@ def measure_traditional(n: int) -> dict:
     src_id, dst_id = node_ids[0], node_ids[-1]
     src = trad.routers[src_id]
 
-                
     pkts = []
     trad.routers[dst_id].on_packet_received = lambda p: pkts.append(p)
     t0 = time.time()
@@ -48,12 +68,11 @@ def measure_traditional(n: int) -> dict:
     elapsed = time.time() - t0
     m_tp = compute_metrics(pkts, elapsed)
 
-              
     pkts2 = []
     trad.routers[dst_id].on_packet_received = lambda p: pkts2.append(p)
     traffic_thread = threading.Thread(
         target=cbr,
-        args=(src, dst_id, RATE_PPS, DURATION * 4),
+        args=(src, dst_id, RATE_PPS, RECOVERY_WINDOW),
         kwargs={"flow_id": "scale_fo", "size": 512},
         daemon=True,
     )
@@ -61,9 +80,10 @@ def measure_traditional(n: int) -> dict:
     time.sleep(FAILURE_AT)
     failure_wall = time.time()
 
-                                     
-    first_neighbor = list(trad.routers[src_id].neighbors.keys())[0]
-    trad.fail_link(src_id, first_neighbor)
+    link_pair = _find_path_link(topo, src_id, dst_id)
+    if link_pair:
+        trad.fail_link(link_pair[0], link_pair[1])
+
     traffic_thread.join()
     recovery = compute_recovery_time(pkts2, failure_wall)
 
@@ -83,13 +103,12 @@ def measure_sdn(n: int) -> dict:
 
     t0 = time.perf_counter()
     sdn = SDNNetwork(topo)
-    setup_time = time.perf_counter() - t0                                             
+    setup_time = time.perf_counter() - t0
 
     node_ids = sdn.node_ids()
     src_id, dst_id = node_ids[0], node_ids[-1]
     src = sdn.switches[src_id]
 
-                
     pkts = []
     sdn.switches[dst_id].on_packet_received = lambda p: pkts.append(p)
     t0 = time.time()
@@ -98,12 +117,11 @@ def measure_sdn(n: int) -> dict:
     elapsed = time.time() - t0
     m_tp = compute_metrics(pkts, elapsed)
 
-              
     pkts2 = []
     sdn.switches[dst_id].on_packet_received = lambda p: pkts2.append(p)
     traffic_thread = threading.Thread(
         target=cbr,
-        args=(src, dst_id, RATE_PPS, DURATION * 4),
+        args=(src, dst_id, RATE_PPS, RECOVERY_WINDOW),
         kwargs={"flow_id": "scale_fo", "size": 512},
         daemon=True,
     )
@@ -111,9 +129,10 @@ def measure_sdn(n: int) -> dict:
     time.sleep(FAILURE_AT)
     failure_wall = time.time()
 
-    first_neighbor = list(sdn.switches[src_id].neighbors.keys())[0]
+    link_pair = _find_path_link(topo, src_id, dst_id)
     recompute_t0 = time.perf_counter()
-    sdn.fail_link(src_id, first_neighbor)
+    if link_pair:
+        sdn.fail_link(link_pair[0], link_pair[1])
     recompute_time = time.perf_counter() - recompute_t0
 
     traffic_thread.join()
@@ -121,10 +140,10 @@ def measure_sdn(n: int) -> dict:
 
     return {
         "n_nodes": n,
-        "convergence_s": round(setup_time, 6),                 
+        "convergence_s": round(setup_time, 6),
         "throughput_mbps": round(m_tp["throughput_mbps"], 4),
         "packet_loss_pct": round(m_tp["packet_loss_pct"], 2),
-        "recovery_time_s": round(recovery, 6) if recovery != float("inf") else -1,
+        "recovery_time_s": round(recovery, 3) if recovery != float("inf") else -1,
         "controller_recompute_s": round(recompute_time, 6),
     }
 

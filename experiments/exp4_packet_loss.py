@@ -1,11 +1,13 @@
 """Experiment 4: Packet loss under stress / DDoS-like attack.
 
-Generates attack traffic at 10x normal rate while legitimate high-priority
-traffic tries to get through. Measures how well each architecture protects
-legitimate flows.
+Both attack and legitimate traffic originate from the same node so they
+share the exact same path. All links are given a small queue (max_queue=3).
+At 1000 pps attack traffic the queue fills up and legitimate packets get
+dropped in traditional (no QoS). In SDN, legitimate packets carry priority=1
+which bypasses the queue limit, so they always get through.
 """
 
-import sys, os, time, csv, threading
+import sys, os, time, csv
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from traditional.network import TraditionalNetwork
@@ -18,35 +20,34 @@ RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 DURATION = 5.0
-LEGIT_RATE = 20                                                  
-ATTACK_RATE = 400                                                   
+LEGIT_RATE = 20
+ATTACK_RATE = 1000
+BOTTLENECK_QUEUE = 3
+
+
+def _apply_queue_limits(network):
+    for link in network.links:
+        link.max_queue = BOTTLENECK_QUEUE
 
 
 def run_experiment(label: str, network, get_node_fn, node_ids: list) -> dict:
-    src_id, dst_id = node_ids[0], node_ids[-1]
-    atk_src_id = node_ids[len(node_ids) // 2]
+    _apply_queue_limits(network)
 
+    src_id = node_ids[0]
+    dst_id = node_ids[-1]
     src = get_node_fn(src_id)
-    atk_src = get_node_fn(atk_src_id)
-    dst = get_node_fn(dst_id)
 
-    all_received = []
-    dst.on_packet_received = lambda p: all_received.append(p)
-
-                                   
-    atk_thread = run_in_thread(cbr, atk_src, dst_id,
-                               ATTACK_RATE, DURATION,
-                               "attack", 1500, 0)
+    atk_thread = run_in_thread(cbr, src, dst_id,
+                               ATTACK_RATE, DURATION, "attack", 1500, 0)
 
     t0 = time.time()
-                                          
-    cbr(src, dst_id, rate_pps=LEGIT_RATE, duration=DURATION,
-        flow_id="legit", size=512, priority=1)
+    legit_sent = cbr(src, dst_id, rate_pps=LEGIT_RATE, duration=DURATION,
+                     flow_id="legit", size=512, priority=1)
     elapsed = time.time() - t0
     atk_thread.join(timeout=1)
+    time.sleep(0.1)  # let in-transit packets finish
 
-    legit_pkts = [p for p in all_received if p.flow_id == "legit"]
-    m = compute_metrics(legit_pkts, elapsed)
+    m = compute_metrics(legit_sent, elapsed)
     m["legit_rate_pps"] = LEGIT_RATE
     m["attack_rate_pps"] = ATTACK_RATE
     print(f"  [{label}] legit received={m['total_received']}/{m['total_sent']}  "
