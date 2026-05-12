@@ -4,7 +4,7 @@ Sends CBR at 50 packets/sec for 10 seconds and measures inter-arrival
 time standard deviation. Lower is better for real-time traffic.
 """
 
-import sys, os, time, csv
+import sys, os, time, csv, ctypes
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from traditional.network import TraditionalNetwork
@@ -49,6 +49,8 @@ def save_csv(label: str, m: dict):
 
 def main():
     print("\n=== Experiment 3: Jitter (VoIP / video) ===")
+    if sys.platform == "win32":
+        ctypes.windll.winmm.timeBeginPeriod(1)
 
     print("\n[Traditional] Starting...")
     trad = TraditionalNetwork(TOPO, update_interval=2.0)
@@ -64,6 +66,9 @@ def main():
     m_sdn = run_experiment("sdn", sdn,
                            lambda nid: sdn.switches[nid], sdn.node_ids())
     save_csv("sdn", m_sdn)
+
+    if sys.platform == "win32":
+        ctypes.windll.winmm.timeEndPeriod(1)
 
 
 if __name__ == "__main__":

@@ -25,11 +25,13 @@ class TraditionalNetwork:
             a_id, b_id = edge["a"], edge["b"]
             router_a = self.routers[a_id]
             router_b = self.routers[b_id]
+            delay_ms = edge.get("delay_ms", 5)
             link = Link(
                 router_a, router_b,
                 bandwidth_mbps=edge.get("bandwidth_mbps", 100),
-                delay_ms=edge.get("delay_ms", 5),
+                delay_ms=delay_ms,
                 loss_rate=edge.get("loss_rate", 0.0),
+                jitter_ms=delay_ms * 0.5,
             )
             router_a.add_neighbor(b_id, link)
             router_b.add_neighbor(a_id, link)

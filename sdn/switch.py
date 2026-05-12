@@ -61,12 +61,14 @@ class SDNSwitch(Node):
                                                                         
 
     def receive(self, packet: Packet):
+        arrival_time = time.time()
+
         if self._acl_drop(packet):
             packet.dropped = True
             return
 
         if packet.dst == self.node_id:
-            packet.received_time = time.time()
+            packet.received_time = arrival_time
             packet.path.append(self.node_id)
             if self.on_packet_received:
                 self.on_packet_received(packet)

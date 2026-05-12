@@ -24,11 +24,16 @@ def cbr(node, dst_id: str, rate_pps: float, duration: float,
     """Constant Bit Rate: `rate_pps` packets/sec for `duration` seconds."""
     packets = []
     interval = 1.0 / rate_pps
-    end = time.time() + duration
-    while time.time() < end:
+    clock = time.perf_counter
+    end = clock() + duration
+    deadline = clock() + interval
+    while clock() < end:
         pkt = _send_packet(node, dst_id, flow_id, size, priority)
         packets.append(pkt)
-        time.sleep(interval)
+        remaining = deadline - clock()
+        if remaining > 0:
+            time.sleep(remaining)
+        deadline += interval
     return packets
 
 
