@@ -23,7 +23,7 @@ SIZES = [5, 10, 20, 50, 100]
 DURATION = 3.0
 RATE_PPS = 50
 FAILURE_AT = 1.5
-RECOVERY_WINDOW = 45.0
+RECOVERY_WINDOW = 10.0
 
 
 def topo_path(n):
@@ -100,7 +100,7 @@ def measure_traditional(n: int) -> dict:
     }
 
 
-# same tests on the SDN network -- also records controller recompute time after failure
+# same tests on the SDN network, also records controller recompute time after failure
 def measure_sdn(n: int) -> dict:
     topo = topo_path(n)
 
